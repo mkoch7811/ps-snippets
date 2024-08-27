@@ -5,3 +5,5 @@ CostCenterReview - retrieves a list of cost center values from Active Directory,
 
 FldDistReview - retrieve a list of the owners of all FLD DIST XXXX teams (M365 groups), for comparison with the list of district managers in AD
 
+CreateATeamFromM365Group - take the Object ID of an M365 group, create a Team
+
