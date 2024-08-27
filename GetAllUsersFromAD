@@ -1,0 +1,10 @@
+$xldefs = @{AutoSize=$true;BoldTopRow=$true;AutoFilter=$true;FreezeTopRow=$true;NoNumberConversion='*'}
+
+Get-ADUser -Filter {employeeid -like "*"} -Properties displayname, employeeid, title, department, mail, co, extensionattribute9 -SearchBase "ou=GameStop - All Users,dc=babgsetc,dc=pvt" -Server gv1hqpdc01.babgsetc.pvt | `
+  select enabled, displayname, samaccountname, employeeid, title, department, mail, co, @{n="GL Segment";e={$_.extensionattribute9}} | export-excel c:\temp\babgsetc-users.xlsx @xldefs
+
+Get-ADUser -Filter * -Properties displayname, employeeid, title, department, mail, co -SearchBase "ou=All Users,dc=ebusa,dc=com" -Server gv1ntpdc01.ebusa.com | `
+  select enabled, displayname, samaccountname, employeeid, title, department, mail, co | export-excel c:\temp\ebusa-users.xlsx @xldefs
+
+Get-ADUser -Filter {enabled -eq $true} -Properties displayname, employeeid, title, department, mail, co, extensionattribute9 -SearchBase "ou=Stores,dc=stores,dc=babgsetc,dc=pvt" -Server gv1stpdc01.stores.babgsetc.pvt | `
+  select enabled, displayname, samaccountname, employeeid, title, department, mail, co, @{n="GL Segment";e={$_.extensionattribute9}} | export-excel c:\temp\stores-users.xlsx @xldefs
