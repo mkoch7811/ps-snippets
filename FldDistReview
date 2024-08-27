@@ -1,0 +1,12 @@
+#############################
+## FLD DIST group owners (in Azure)
+# connect to EXO first
+#############################
+[array]$teams = Get-UnifiedGroup -Filter {DisplayName -like "FLD DIST *"} -ResultSize Unlimited | Select DisplayName
+foreach ($t in $teams){$ownername=Get-UnifiedGroupLinks $t.displayname -LinkType Owner | select displayname;write-output "$($t.displayname) - $($ownername.displayname)"}
+
+#############################
+## District Managers - compare to FLD DIST group owners
+#############################
+get-aduser -Filter {enabled -eq $true -and extensionattribute9 -like "Field" -and extensionattribute6 -like "8 Manager"} -Properties $inprops | `
+  sort extensionattribute13 | ft samaccountname, displayname, extensionattribute13, title, company
