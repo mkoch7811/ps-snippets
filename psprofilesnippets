@@ -1,0 +1,277 @@
+# select snippets from my powershell profile
+
+$now = Get-Date -Format yyyyMMddhhmmss
+$sysname = $env:computername
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+$globalcatalog = "SERVERNAME.DOMAIN.EXT:3268"
+$babgsetcdc = "SERVERNAME.DOMAIN.EXT"
+$storesdc = "SERVERNAME.CHILDDOMAIN.DOMAIN.EXT"
+
+# convert AD dates to readable format
+$mylastlogon = @{Name = "lastLogon"; Expression = { ([datetime]::FromFileTime($_.lastLogon)) } }
+$mylastLogonTimestamp = @{Name = "LastLogonTimeStamp"; Expression = { ([datetime]::FromFileTime($_.LastLogonTimeStamp)) } }
+$mypwdLastSet = @{Name = "pwdLastSet"; Expression = { ([datetime]::FromFileTime($_.pwdLastSet)) } }
+$myaccountexpires = @{Name = "accountExpires"; Expression = { ([datetime]::FromFileTime($_.accountexpires)) } }
+
+# commonly used AD attribute
+$inprops = "employeeid", "c", "canonicalName", "co", "company", "description", "displayname", "info", "manager", "office", "title", "department", "mail", "legacyExchangeDn", "employeeType", "extensionattribute1", "extensionattribute2", "extensionattribute3", "extensionattribute4", "extensionattribute5", "extensionattribute6", "extensionattribute7", "extensionattribute8", "extensionattribute9", "extensionattribute10", "extensionattribute11", "extensionattribute12", "extensionattribute13", "extensionattribute14", "extensionattribute15", "pwdLastSet", "accountExpires", "lastlogon", "lastlogontimestamp", "lastlogondate", "whenCreated", "whenChanged", "employeeNumber", "msds-userpasswordexpirytimecomputed"
+
+# hash table for use with Export-Excel function
+$xldefs = @{AutoSize=$true;BoldTopRow=$true;AutoFilter=$true;FreezeTopRow=$true;NoNumberConversion='*'}
+
+# retrieves list of dynamic distribution group members
+# connect to Exchange Online before running this
+function ExpandDynamicGroup {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)]
+        [string]$dynamicgroup
+    )
+    Get-Recipient -RecipientPreviewFilter (Get-DynamicDistributionGroup $dynamicgroup).RecipientFilter | Sort-Object DisplayName | Select-Object Name, DisplayName, Title
+}
+
+# retrieve all associates in a particular store
+function ListStoreUsers {
+    [CmdletBinding()] 
+    param (
+        [Parameter(Mandatory)] 
+        [string]$storenumber
+    )
+    Get-ADUser -Filter {enabled -eq $true -and extensionattribute12 -like $storenumber} -Server $storesdc -Properties $inprops | sort-object title | select-object enabled, @{n='District';e={$_.extensionattribute13}}, employeeid, displayname, title | Format-Table
+}
+
+# retrieve stores in a particular district
+function ListDistrictStores {
+    [CmdletBinding()] 
+    param (
+        [Parameter(Mandatory)] 
+        [string]$districtnumber
+    )
+    Get-ADUser -Filter {enabled -eq $true -and extensionattribute13 -like $districtnumber} -Server $storesdc -Properties $inprops | Group-Object -Property extensionattribute12 | sort name | select count, name
+}
+
+# retrieve name and email of all group members
+function GetGroupMembers {
+    [CmdletBinding()] 
+    param (
+        [Parameter(Mandatory)] 
+        [string]$GROUP
+    )
+    $groupmembers = Get-ADGroupMember $GROUP
+    $users = foreach ($u in $groupmembers){Get-ADUser $u.distinguishedname -Properties displayname, mail}
+    Write-Output $users
+}
+
+# retrieve all members of a group, including nested members
+function Get-NestedGroupMember {
+    [CmdletBinding()] 
+    param (
+        [Parameter(Mandatory)] 
+        [string]$Group 
+    )
+    ## Find all members  in the group specified 
+    $members = Get-ADGroupMember -Identity $Group 
+    foreach ($member in $members) {
+        ## If any member in this group is another group, then call this function again 
+        if ($member.objectClass -eq 'group') {
+            #            Write-Output "*** $($member.name) ***"
+            Get-NestedGroupMember -Group $member.samaccountname
+            ## otherwise, just  output the non-group object (probably a user account)
+        }
+        else {
+            Write-Output $($member.samaccountname)
+        }
+    }
+}
+
+#connects to internal Exchange server
+function ConnectEXP {
+    $Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://gv1hqpex16/powershell/ -Authentication Kerberos -AllowRedirection
+    Import-PSSession $Session
+}
+
+# prompts for EID, then retrieves specific AD attributes
+function ShowADUserByEID {
+    [CmdletBinding()] 
+    param (
+        [Parameter(Mandatory)] 
+        [string]$eid
+    )
+#    $eid = read-host "Enter an Employee ID:"
+    $usr = get-aduser -filter { employeeid -eq $eid } -server $globalcatalog -properties canonicalName
+    if ($usr) {
+        if ($usr.canonicalName -like "babgsetc.pvt*") {
+            $dc = $babgsetcdc
+        }
+        else {
+            $dc = $storesdc
+        }
+        get-aduser $usr.samaccountname -server $dc -properties $inprops | `
+                Select-Object EmployeeID, employeeNumber, enabled, info, employeeType, AccountExpirationDate, samaccountname, `
+                UserPrincipalName, mail, division, telephoneNumber, distinguishedname, GivenName, Surname, `
+                DisplayName, Description, StreetAddress, City, State, PostalCode, Title, Department, Office, `
+                Company, Manager, @{n='ext1:  Legacy ID';e={$_.extensionattribute1}}, @{n='ext6:  Management Level';e={$_.extensionattribute6}}, @{n='ext7:  Cost Center';e={$_.extensionattribute7}}, @{n='ext8:  Exempt Status';e={$_.extensionattribute8}}, `
+                @{n='ext9:  GL Segment';e={$_.extensionattribute9}}, @{n='ext10:';e={$_.extensionattribute10}}, @{n='ext11: Employee Type';e={$_.extensionattribute11}}, @{n='ext12: Store';e={$_.extensionattribute12}}, `
+                @{n='ext13: District';e={$_.extensionattribute13}}, @{n='ext14: Region';e={$_.extensionattribute14}}, @{n='ext15: Stores';e={$_.extensionattribute15}}, msExchHideFromAddressLists, `
+                @{n='c: ';e={$_.c}}, @{n='co: ';e={$_.co}}, @{n='countryCode: ';e={$_.countryCode}}, @{Name="Password Expiration Date";Expression={[datetime]::FromFileTime($_."msDS-UserPasswordExpiryTimeComputed")}}, whencreated, whenchanged, `
+            @{N = 'PasswordLastSet'; E = { [DateTime]::FromFileTime($_.pwdlastset) } }, @{N = 'LastLogon'; E = { [DateTime]::FromFileTime($_.LastLogonTimestamp) } }
+    }
+    else {
+        Write-Output "User $eid not found."
+    }
+}
+
+# prompts for samaccountname, then retrieves specific AD attributes
+# $globalcatalog must be previously defined
+function ShowADUserBySAM {
+    [CmdletBinding()] 
+    param (
+        [Parameter(Mandatory)] 
+        [string]$eid
+    )
+    $usr = get-aduser -filter { samaccountname -eq $eid } -server $globalcatalog -properties canonicalName
+    if ($usr) {
+        if ($usr.canonicalName -like "babgsetc.pvt*") {
+            $dc = $babgsetcdc
+        }
+        else {
+            $dc = $storesdc
+        }
+        get-aduser $usr.samaccountname -server $dc -properties $inprops | `
+                Select-Object EmployeeID, employeeNumber, enabled, info, employeeType, AccountExpirationDate, samaccountname, `
+                UserPrincipalName, mail, division, telephoneNumber, distinguishedname, GivenName, Surname, `
+                DisplayName, Description, StreetAddress, City, State, PostalCode, Title, Department, Office, `
+                Company, Manager, @{n='ext1:  Legacy ID';e={$_.extensionattribute1}}, @{n='ext6:  Management Level';e={$_.extensionattribute6}}, @{n='ext7:  Cost Center';e={$_.extensionattribute7}}, @{n='ext8:  Exempt Status';e={$_.extensionattribute8}}, `
+                @{n='ext9:  GL Segment';e={$_.extensionattribute9}}, @{n='ext10:';e={$_.extensionattribute10}}, @{n='ext11: Employee Type';e={$_.extensionattribute11}}, @{n='ext12: Store';e={$_.extensionattribute12}}, `
+                @{n='ext13: District';e={$_.extensionattribute13}}, @{n='ext14: Region';e={$_.extensionattribute14}}, @{n='ext15: Stores';e={$_.extensionattribute15}}, msExchHideFromAddressLists, `
+                @{n='c: ';e={$_.c}}, @{n='co: ';e={$_.co}}, @{n='countryCode: ';e={$_.countryCode}}, @{Name="Password Expiration Date";Expression={[datetime]::FromFileTime($_."msDS-UserPasswordExpiryTimeComputed")}}, whencreated, whenchanged, `
+            @{N = 'PasswordLastSet'; E = { [DateTime]::FromFileTime($_.pwdlastset) } }, @{N = 'LastLogon'; E = { [DateTime]::FromFileTime($_.LastLogonTimestamp) } }
+    }
+    else {
+        Write-Output "User $eid not found."
+    }
+}
+
+# checks if a string is formatted like an email address
+function ValidateEmail ([string]$Email) { 
+    return $Email -match "^(?("")("".+?""@)|(([0-9a-zA-Z]((\.(?!\.))|[-!#\$%&'\*\+/=\?\^`\{\}\|~\w])*)(?<=[0-9a-zA-Z])@))(?(\[)(\[(\d{1,3}\.){3}\d{1,3}\])|(([0-9a-zA-Z][-\w]*[0-9a-zA-Z]\.)+[a-zA-Z]{2,6}))$" 
+} 
+
+function ConnectOffice365 {
+<#
+===========================================================================
+.DESCRIPTION
+    Connect to different Office 365 Services using PowerShell function.
+    Assumes the relevant PS modules are installed
+.PARAMETER Exchange
+    Connect to Exchange Online
+.PARAMETER Sharepoint
+    Connect to SharePoint Online
+.PARAMETER SecurityandCompliance
+    Connect to Security and Compliance Center
+.PARAMETER AzureAD
+    Connect to Azure AD V2
+.PARAMETER MSOnline
+    Connect to Azure AD V1
+.PARAMETER Teams
+    Connect to Teams
+.EXAMPLE
+    Connect to multiple services:
+    Connect-Office365 -Service Exchange, SharePoint
+===========================================================================
+#>
+    [OutputType()]
+    [CmdletBinding(DefaultParameterSetName)]
+    Param (
+        [Parameter(Mandatory = $True, Position = 1)]
+        [ValidateSet('AzureAD', 'Exchange', 'MSOnline', 'SecurityAndCompliance', 'SharePoint', 'Teams')]
+        [string[]]$Service,
+        [Parameter(Mandatory = $False, Position = 3, ParameterSetName = 'Credential')]
+        [PSCredential]$Credential
+    )
+    $getModuleSplat = @{
+        ListAvailable = $True
+        Verbose       = $False
+    }
+
+    Write-Verbose "Gathering PSCredentials object for sign on"
+    $Credential = Get-Credential -UserName "mikoch@gmelogin.com" -Message "Please enter your Office 365 credentials"
+
+    ForEach ($Item in $PSBoundParameters.Service) {
+        Write-Verbose "Attempting connection to $Item"
+        Switch ($Item) {
+            AzureAD {
+                Write-Output "Connecting to AzureAD"
+                $Connect = Connect-AzureAD -Credential $Credential
+            }
+            Exchange {
+                Write-Output "Connecting to Exchange Online"
+                Connect-ExchangeOnline -Credential $Credential -ShowProgress $True -ShowBanner:$false
+            }
+            MSOnline {
+                Write-Output "Connecting to MSOL"
+                Connect-MsolService -Credential $Credential
+            }
+            SecurityAndCompliance {
+                Write-Output "Connecting to SecurityAndCompliance"
+                Connect-IPPSSession -Credential $Credential -ConnectionUri https://ps.compliance.protection.outlook.com/powershell-liveid/
+            }
+            SharePoint {
+                Write-Output "Sharepoint access via Powershell only works in Windows PowerShell"
+            }
+            Teams {
+                Write-Output "Connecting to Teams"
+                $TeamsConnect = Connect-MicrosoftTeams -Credential $Credential
+            }
+            Default { }
+        }
+    }
+}
+
+Function Get-DirectReport {
+<#
+===========================================================================
+.DESCRIPTION
+    This script will get a user's direct reports recursively from ActiveDirectory unless specified with the NoRecurse parameter.
+    It also uses the user's EmployeeID attribute as a way to exclude service accounts and/or non standard accounts that are in the reporting structure.
+.PARAMETER SamAccountName
+    Specify the samaccountname (username) to see their direct reports.
+.PARAMETER NoRecurse
+    Using this option will not drill down further than one level.
+.EXAMPLE
+    Get-DirectReport username
+.EXAMPLE
+    Get-DirectReport -SamAccountName username -NoRecurse
+===========================================================================
+#>
+    [CmdletBinding()]
+    param(
+        [Parameter(
+            Mandatory = $false,
+            ValueFromPipeline = $true,
+            ValueFromPipelineByPropertyName = $true
+        )]
+        [string]  $SamAccountName,
+        [switch]  $NoRecurse
+    )
+    $SeedUser = Get-ADUser $SamAccountName -Properties DirectReports, DisplayName
+    $UserAccounts = $SeedUser | select -ExpandProperty DirectReports
+    ForEach ($User in $UserAccounts) {
+        $u = Get-ADUser $User -Properties DirectReports, DisplayName, Mail, EmployeeID, extensionattribute6
+        if ($null -ne $u.EmployeeID) {
+            if (-not $NoRecurse) {
+                Get-DirectReport $u.SamAccountName
+            }
+            [PSCustomObject]@{
+                Enabled            = $u.Enabled
+                SamAccountName     = $u.SamAccountName
+                UserPrincipalName  = $u.UserPrincipalName
+                DisplayName        = $u.DisplayName
+                Email              = $u.Mail
+                Manager            = $SeedUser.DisplayName
+                ManagementLevel    = $u.extensionattribute6
+            }
+        }
+    }
+}
