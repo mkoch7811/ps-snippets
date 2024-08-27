@@ -1,0 +1,5 @@
+#############################
+#  Retrieve Cost Centers from AD for Comparison to Dynamic DLs
+#############################
+Get-ADUser -Filter {enabled -eq $true -and extensionattribute9 -like "Department/Corp"} -Properties employeeid, extensionattribute7 -SearchBase "ou=GameStop - All Users,dc=babgsetc,dc=pvt" | `
+  where {$_.employeeid -match '^\d\d\d\d\d\d$'} | Group-Object extensionattribute7 | Sort-Object Name -Descending | select Count, Name
