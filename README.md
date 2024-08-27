@@ -9,4 +9,4 @@ FindNamesWithNon-AlphaChars - Queries names in AD, looking for non-alphabetic ch
 
 FldDistReview - retrieve a list of the owners of all FLD DIST XXXX teams (M365 groups), for comparison with the list of district managers in AD
 
-
+GetAllUsersFromAD - retrieves all users from each domain and exports them to an XLSX file
