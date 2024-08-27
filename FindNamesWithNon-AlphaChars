@@ -1,0 +1,6 @@
+#############################
+## find names containing non-alpha characters
+#############################
+$allusers = Get-ADUser -filter {enabled -eq $true} -Server stores.babgsetc.pvt -SearchBase "ou=Store Employees,ou=Stores,dc=stores,dc=babgsetc,dc=pvt" -Properties $inprops
+foreach ($u in $allusers){if ($u.givenname -notmatch '[a-z]+$'){write-output "$($u.employeeid),$($u.givenname),$($u.surname),$($u.extensionattribute12),$($u.extensionattribute13),$($u.extensionattribute14)"}}
+foreach ($u in $allusers){if ($u.surname -notmatch '[a-z]+$'){write-output "$($u.employeeid),$($u.givenname),$($u.surname),$($u.extensionattribute12),$($u.extensionattribute13),$($u.extensionattribute14)"}}
