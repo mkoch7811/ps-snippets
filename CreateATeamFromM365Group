@@ -1,0 +1,4 @@
+#############################
+## How to Create a TEAM from M365 group (create the group w/ dynamic rule first, then create the team)
+#############################
+New-Team -GroupId <Object ID of M365 group>
