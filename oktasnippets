@@ -1,0 +1,94 @@
+String.len(user.employeeNumber)>0 ? user.employeeNumber : String.substringBefore(user.login,"@")
+
+hasDirectoryUser() AND Arrays.contains({"0627","1271","6010"}, user.StoreNumber) AND String.stringContains(user.addn,"OU=Store Employees,OU=Stores,DC=stores,DC=babgsetc,DC=pvt")
+
+Arrays.contains({"8 Manager","9 Supervisor"},user.mgmtlevel)
+
+Arrays.isEmpty(Groups.startsWith("active_directory_2","AUS - Apps",300)) ? Groups.startsWith("OKTA","",100) : Arrays.flatten(Groups.startsWith("OKTA","",300),Groups.startsWith("active_directory_2","AUS - Apps",300))
+
+Arrays.isEmpty(Groups.startsWith("0oag1jcpaqwULi3Xt0y6","AUS - Apps",300)) ? Groups.startsWith("OKTA","",100) : Arrays.flatten(Groups.startsWith("OKTA","",300),Groups.startsWith("0oag1jcpaqwULi3Xt0y6","AUS - Apps",300))
+
+hasDirectoryUser() AND String.stringContains(user.RegionNumber,"01") AND ((String.stringContains(user.mgmtlevel,"10 Individual Contributor") AND String.stringContains(user.title,"Senior Guest Advisor")) OR Arrays.contains({"8 Manager","9 Supervisor"},user.mgmtlevel)) AND String.stringContains(user.addn,"OU=Store Employees,OU=Stores,DC=stores,DC=babgsetc,DC=pvt")
+
+hasDirectoryUser() AND String.stringContains(user.RegionNumber,"01") AND String.stringContains(user.addn,"OU=Store Employees,OU=Stores,DC=stores,DC=babgsetc,DC=pvt") AND (Arrays.contains({"8 Manager","9 Supervisor"},user.mgmtlevel) OR Arrays.contains({"Senior Guest Advisor","Retail Keyholder"},user.title))
+
+##########################################
+# Update primary email address of Okta-mastered accounts from CSV
+##########################################
+connectoktaprod
+$former = import-csv d:\temp\formeremployeeemail2024-b.csv
+$counter = 1
+foreach ($f in $former){ 
+  Write-Output "Processing record: $counter"
+  $profileupdate = @{profile=@{email=$f.HomeEmail;firstName=$f.firstname;lastName=$f.lastname}}
+  set-oktauser -id $f.primaryemail $profileupdate
+  enable-oktauser -id $f.primaryemail -sendEmail $true 
+  start-sleep -seconds 1
+  $counter++
+}
+
+OKTA expression functions
+hasDirectoryUser()
+Arrays.contains({"2287", "4269","6306","5943","5145"}, user.StoreNumber)
+Arrays.contains({"0606","0206","1704","1803"}, user.DistrictNumber)
+user.Area=="Store"
+String.stringContains(user.addn,"OU=Store Employees,OU=Stores,DC=stores,DC=babgsetc,DC=pvt")
+
+hasDirectoryUser() AND Arrays.contains({"0031","0112"},user.costCenter) AND String.stringContains(user.Area, "Department/Corp")
+
+hasDirectoryUser() AND Arrays.contains({"0654","1643","2624","4889","0735","1780","2593","2630"}, user.StoreNumber) AND String.stringContains(user.addn,"OU=Store Employees,OU=Stores,DC=stores,DC=babgsetc,DC=pvt")
+
+# Okta expression language - if length of employeeNumber field is greater than zero, use employeeNumber, otherwise use samaccountname
+String.len(user.employeeNumber)>0 ? user.employeeNumber : String.substringBefore(user.login,"@")
+
+hasDirectoryUser() AND Arrays.contains({"01","02","03","04","05","06"}, user.RegionNumber) AND String.stringContains(user.addn,"OU=Store Employees,OU=Stores,DC=stores,DC=babgsetc,DC=pvt") AND (String.stringContains(user.mgmtlevel,"8 Manager") OR (String.stringContains(user.mgmtlevel,"9 Supervisor") AND String.stringContains(user.title,"Temporary Store Leader - Hourly")))
+
+hasDirectoryUser() AND String.stringContains(user.RegionNumber,"06") AND ((String.stringContains(user.mgmtlevel,"10 Individual Contributor") AND String.stringContains(user.title,"Senior Guest Advisor")) OR Arrays.contains({"8 Manager","9 Supervisor"},user.mgmtlevel)) AND String.stringContains(user.addn,"OU=Store Employees,OU=Stores,DC=stores,DC=babgsetc,DC=pvt")
+
+PASSWORD RESET FAILURES
+eventType sw "user.account" and outcome.result eq "FAILURE" and eventType eq "user.account.reset_password"
+eventType sw "user.account" and outcome.result eq "FAILURE" and eventType eq "user.account.reset_password" and outcome.reason eq "Unknown user"
+eventType sw "user.account" and outcome.result eq "FAILURE" and eventType eq "user.account.reset_password" and outcome.reason eq "Invalid user state"
+eventType sw "user.account" and outcome.result eq "FAILURE" and eventType eq "user.account.reset_password" and outcome.reason eq "Shared email address"
+eventType sw "user.account" and outcome.result eq "FAILURE" and eventType eq "user.account.reset_password" and outcome.reason eq "User answered recovery question invalid"
+
+eventType sw "user.account" and eventType eq "user.account.update_secondary_email" and outcome.result eq "SUCCESS"
+eventType sw "user.account" and eventType eq "user.account.report_suspicious_activity_by_enduser"
+eventType sw "user.account" and eventType eq "user.account.unlock"
+eventType sw "user.account" and eventType eq "user.account.lock"
+
+LOGIN SUCCESSFUL
+eventType eq "user.session.start"
+LOGIN FAILED
+eventType eq "user.session.start" and outcome.result eq "FAILURE"
+eventType eq "user.session.start" and outcome.result eq "FAILURE" and outcome.reason eq "VERIFICATION_ERROR"
+eventType eq "user.session.start" and outcome.result eq "FAILURE" and outcome.reason eq "INVALID_CREDENTIALS"
+
+MFA
+eventType eq "user.mfa.factor.activate"
+eventType eq "user.mfa.factor.activate" and outcome.reason eq "User set up SMS_FACTOR factor"
+eventType eq "user.mfa.factor.activate" and outcome.reason eq "User set up OKTA_SOFT_TOKEN factor"
+eventType eq "user.mfa.factor.activate" and outcome.reason eq "User set up OKTA_VERIFY_PUSH factor"
+eventType eq "user.mfa.factor.deactivate"
+eventType eq "user.mfa.factor.reset_all"
+
+########################
+system log query fields
+########################
+eventType eq "user.mfa.factor.activate"
+eventType eq "user.mfa.factor.deactivate"
+eventType eq "user.mfa.factor.update"
+eventType eq "user.mfa.factor.reset_all"
+eventType eq "user.mfa.attempt_bypass"
+eventType eq "user.mfa.okta_verify.deny_push"
+eventType eq "user.account.update_secondary_email"
+eventType eq "user.account.update_primary_email"
+eventType eq "system.email.mfa_enroll_notification.sent_message"
+eventType eq "system.email.mfa_reset_notification.sent_message"
+eventType eq "system.email.new_device_notification.sent_message"
+eventType eq "user.account.report_suspicious_activity_by_enduser"
+
+https://www.okta.com/incident-response-guide/
+https://developer.okta.com/docs/reference/api/system-log/
+https://developer.okta.com/docs/reference/api/event-types/
+https://help.okta.com/en/prod/Content/Topics/Security/policies/policies-home.htm
