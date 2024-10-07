@@ -1,2 +1,6 @@
-# calculate and format store numbers out to 4 digits
-="ST" & TEXT(C1,"0000")
+# pad number in A1 to 4 digits and prepend "ST"
+="ST" & TEXT(A1,"0000")
+
+# another way...
+# pad number in A1 to 4 chars (stores, districts)
+=REPT("0",4-LEN(A1))&A1
