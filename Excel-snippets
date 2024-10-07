@@ -4,3 +4,6 @@
 # another way...
 # pad number in A1 to 4 chars (stores, districts)
 =REPT("0",4-LEN(A1))&A1
+
+# powershell hashtable to define Export-Excel defaults (stored in powershell profile)
+$xldefs = @{AutoSize=$true;BoldTopRow=$true;AutoFilter=$true;FreezeTopRow=$true;NoNumberConversion='*'}
