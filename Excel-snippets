@@ -1,0 +1,2 @@
+# calculate and format store numbers out to 4 digits
+="ST" & TEXT(C1,"0000")
